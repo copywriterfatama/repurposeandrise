@@ -4,11 +4,21 @@
 # Output: episodes/<slug>/transcript/  (VTT captions and/or whisper .txt/.srt + audio metadata)
 set -euo pipefail
 
-URL="${1:?usage: transcribe.sh <youtube-url> <episode-slug>}"
-SLUG="${2:?usage: transcribe.sh <youtube-url> <episode-slug>}"
+URL="${1:?usage: transcribe.sh <youtube-url-or-channel> <episode-slug>}"
+SLUG="${2:?usage: transcribe.sh <youtube-url-or-channel> <episode-slug>}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/episodes/$SLUG/transcript"
 mkdir -p "$OUT"
+
+# Channel or playlist URL -> resolve to its newest upload (default per the role prompt).
+case "$URL" in
+  *"/@"*|*"/videos"*|*"list="*|*"/playlist"*)
+    echo "==> Channel/playlist given; resolving latest episode"
+    VID_ID="$(yt-dlp --flat-playlist -I 1 --print id "$URL")"
+    URL="https://www.youtube.com/watch?v=$VID_ID"
+    echo "==> Latest episode: $URL"
+    ;;
+esac
 
 echo "==> Episode metadata"
 yt-dlp --skip-download --print "%(title)s | %(upload_date)s | %(duration_string)s | %(id)s" "$URL" \
